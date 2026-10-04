@@ -17,7 +17,7 @@ typedef struct {
 } Puzzle;
 
 int letter_map[26];
-int used_digits[10];
+int used_mask;
 char unique_letters[MAX_UNIQUE];
 int num_unique;
 int leading[26];
@@ -91,57 +91,18 @@ int check(const Puzzle* p) {
     return (res != -1 && sum == res);
 }
 
-int partial_check(const Puzzle* p) {
-    long long max_possible_sum = 0;
-    for (int i = 0; i < p->num_words; i++) {
-        long long word_max = 0;
-        int all_assigned = 1;
-        for (int j = 0; j < p->word_len[i]; j++) {
-            int d = letter_map[p->words[i][j] - 'A'];
-            if (d == -1) {
-                word_max = word_max * 10 + 9;
-                all_assigned = 0;
-            } else {
-                word_max = word_max * 10 + d;
-            }
-        }
-        if (!all_assigned) {
-            for (int j = 0; j < p->word_len[i]; j++) {
-                if (letter_map[p->words[i][j] - 'A'] == -1) {
-                    word_max += 9;
-                    break;
-                }
-            }
-        }
-        max_possible_sum += word_max;
-    }
-    long long min_result = 0;
-    int result_all_assigned = 1;
-    for (int j = 0; j < p->result_len; j++) {
-        int d = letter_map[p->result[j] - 'A'];
-        if (d == -1) {
-            min_result = min_result * 10 + 0;
-            result_all_assigned = 0;
-        } else {
-            min_result = min_result * 10 + d;
-        }
-    }
-    if (max_possible_sum < min_result) return 0;
-    return 1;
-}
-
 int solve(const Puzzle* p, int depth) {
     if (depth == num_unique) return check(p);
     char letter = unique_letters[depth];
     int idx = letter - 'A';
     for (int d = 0; d <= 9; d++) {
         if (d == 0 && leading[idx]) continue;
-        if (used_digits[d]) continue;
+        if (used_mask & (1 << d)) continue;
         letter_map[idx] = d;
-        used_digits[d] = 1;
-        if (partial_check(p) && solve(p, depth + 1)) return 1;
+        used_mask |= (1 << d);
+        if (solve(p, depth + 1)) return 1;
         letter_map[idx] = -1;
-        used_digits[d] = 0;
+        used_mask &= ~(1 << d);
     }
     return 0;
 }
@@ -162,7 +123,7 @@ int main() {
     const char* input = "SEND + MORE = MONEY";
     Puzzle p;
     memset(letter_map, -1, sizeof(letter_map));
-    memset(used_digits, 0, sizeof(used_digits));
+    used_mask = 0;
     clock_t start = clock();
     parse(input, &p);
     int found = solve(&p, 0);

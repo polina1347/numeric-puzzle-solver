@@ -21,10 +21,12 @@ int used_mask;
 char unique_letters[MAX_UNIQUE];
 int num_unique;
 int leading[26];
+int letter_weight[26];
 
 void parse(const char* input, Puzzle* p) {
     p->num_words = 0;
     memset(leading, 0, sizeof(leading));
+    memset(letter_weight, 0, sizeof(letter_weight));
     const char* eq = strchr(input, '=');
     if (!eq) return;
     char left[256], right[256];
@@ -47,10 +49,22 @@ void parse(const char* input, Puzzle* p) {
         p->words[p->num_words][k] = '\0';
         p->word_len[p->num_words] = k;
         if (k > 0) leading[p->words[p->num_words][0] - 'A'] = 1;
+        for (int j = 0; j < k; j++) {
+            int pos = k - 1 - j;
+            int weight = 1;
+            for (int m = 0; m < pos; m++) weight *= 10;
+            letter_weight[p->words[p->num_words][j] - 'A'] += weight;
+        }
         p->num_words++;
         tok = strtok(NULL, "+");
     }
     free(lcopy);
+    for (int j = 0; j < p->result_len; j++) {
+        int pos = p->result_len - 1 - j;
+        int weight = 1;
+        for (int m = 0; m < pos; m++) weight *= 10;
+        letter_weight[p->result[j] - 'A'] += weight;
+    }
     int seen[26] = {0};
     num_unique = 0;
     for (int i = 0; i < p->num_words; i++)
@@ -66,6 +80,15 @@ void parse(const char* input, Puzzle* p) {
         if (!seen[c - 'A']) {
             seen[c - 'A'] = 1;
             unique_letters[num_unique++] = c;
+        }
+    }
+    for (int i = 0; i < num_unique - 1; i++) {
+        for (int j = i + 1; j < num_unique; j++) {
+            if (letter_weight[unique_letters[i] - 'A'] < letter_weight[unique_letters[j] - 'A']) {
+                char temp = unique_letters[i];
+                unique_letters[i] = unique_letters[j];
+                unique_letters[j] = temp;
+            }
         }
     }
 }
